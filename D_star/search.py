@@ -2,23 +2,24 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import math
 
+
 # Class for each node in the grid
 class Node:
     def __init__(self, row, col, is_obs, is_dy_obs):
-        self.row = row             # coordinate
-        self.col = col             # coordinate
-        self.is_obs = is_obs       # obstacle?
-        self.is_dy_obs = is_dy_obs # dynamic obstacle?
-        self.tag = "NEW"           # tag ("NEW", "OPEN", "CLOSED")
-        self.h = math.inf          # cost to goal (NOT heuristic)
-        self.k = math.inf          # best h
-        self.parent = None         # parent node
+        self.row = row  # coordinate
+        self.col = col  # coordinate
+        self.is_obs = is_obs  # obstacle?
+        self.is_dy_obs = is_dy_obs  # dynamic obstacle?
+        self.tag = "NEW"  # tag ("NEW", "OPEN", "CLOSED")
+        self.h = math.inf  # cost to goal (NOT heuristic)
+        self.k = math.inf  # best h
+        self.parent = None  # parent node
 
 
 class DStar:
     def __init__(self, grid, dynamic_grid, start, goal):
         # Maps
-        self.grid = grid                  # the pre-known grid map
+        self.grid = grid  # the pre-known grid map
         self.dynamic_grid = dynamic_grid  # the actual grid map (with dynamic obstacles)
         # Create a new grid to store nodes
         size_row = len(grid)
@@ -39,14 +40,12 @@ class DStar:
         # Result
         self.path = []
 
-
     def instantiate_node(self, point):
         ''' Instatiate a node given point (x, y) '''
         row, col = point
-        node = Node(row, col, not self.grid[row][col], 
-                              not self.dynamic_grid[row][col])
+        node = Node(row, col, not self.grid[row][col],
+                    not self.dynamic_grid[row][col])
         return node
-
 
     def get_k_min(self):
         '''Get the minimal k value from open list
@@ -63,7 +62,6 @@ class DStar:
         # Get the minimal k value
         else:
             return node.k
-    
 
     def min_node(self):
         '''Get the node with minimal k value from open list
@@ -79,7 +77,6 @@ class DStar:
         else:
             return min(self.open, key=lambda n: n.k)
 
-
     def delete(self, node):
         ''' Remove a node from open list 
             and set it to "CLOSED"
@@ -87,7 +84,6 @@ class DStar:
         self.open.remove(node)
         node.tag = "CLOSED"
 
-    
     def get_neighbors(self, node):
         ''' Get neighbors of a node with 8 connectivity '''
         row = node.row
@@ -98,16 +94,15 @@ class DStar:
             for j in range(-1, 2):
                 # Check range
                 if row + i < 0 or row + i >= len(self.grid) or \
-                   col + j < 0 or col + j >= len(self.grid[0]):
+                        col + j < 0 or col + j >= len(self.grid[0]):
                     continue
                 # Do not append the same node
                 if i == 0 and j == 0:
                     continue
 
                 neighbors.append(self.grid_node[row + i][col + j])
-        
-        return neighbors
 
+        return neighbors
 
     def cost(self, node1, node2):
         ''' Euclidean distance from one node to another 
@@ -122,11 +117,10 @@ class DStar:
         # Euclidean distance
         a = node1.row - node2.row
         b = node1.col - node2.col
-        return (a**2 + b**2) ** (1/2)
-
+        return (a ** 2 + b ** 2) ** (1 / 2)
 
     def process_state(self):
-        ''' Pop the node in the open list 
+        ''' Pop the node in the open list
             Process the node based on its state (RAISE or LOWER)
             If RAISE
                 Try to decrease the h value by finding better parent from neighbors
@@ -135,65 +129,90 @@ class DStar:
                 Attach the neighbor as the node's child if this gives a better cost
                 Or update this neighbor's cost if it already is
         '''
-        #### TODO ####
         # Pop node from open list
-        
+        node = self.min_node()
+        self.delete(node)
+        if node is None:
+            print("Node is None")
+            return -1
+        k_old = node.k
+
         # Get neighbors of the node
         # using self.get_neighbors
-        
+        neighbors = self.get_neighbors(node)
+
         # If node k is smaller than h (RAISE)
-
+        if k_old < node.h:
+            for neighbor in neighbors:
+                c = self.cost(node, neighbor)
+                if neighbor.h <= k_old and node.h > neighbor.h + c:
+                    node.parent = neighbor
+                    node.h = neighbor.h + c
         # If node k is the same as h (LOWER)
-
-        # Else node k is smaller than h (RASIE)
-
-        #### TODO END ####
+        if k_old == node.h:
+            for neighbor in neighbors:
+                c = self.cost(node, neighbor)
+                if neighbor.tag == "NEW" or (neighbor.parent == node and neighbor.h != node.h + c) or \
+                        (neighbor.parent != node and neighbor.h > node.h + c):
+                    neighbor.parent = node
+                    self.insert(neighbor, node.h + c)
+        # Else node k is smaller than h (RAISE)
+        else:
+            for neighbor in neighbors:
+                c = self.cost(node, neighbor)
+                if neighbor.tag == "NEW" or (neighbor.parent == node and neighbor.h != node.h + c):
+                    neighbor.parent = node
+                    self.insert(neighbor, node.h + c)
+                else:
+                    if neighbor.parent != node and neighbor.h > node.h + c:
+                        self.insert(node, node.h)
+                    else:
+                        if neighbor.parent != node and node.h > neighbor.h + c and \
+                                neighbor.tag == "CLOSED" and neighbor.h > k_old:
+                            self.insert(neighbor, neighbor.h)
 
         return self.get_k_min()
-
 
     def repair_replan(self, node):
         ''' Replan the trajectory until 
             no better path is possible or the open list is empty 
         '''
-        #### TODO ####
         # Call self.process_state() until it returns k_min >= h(Y) or open list is empty
         # The cost change will be propagated
+        while self.open:
+            if self.process_state() >= node.h:
+                break
 
-        #### TODO END ####
-        
-
-    def modify_cost(self, obsatcle_node, neighbor):
+    def modify_cost(self, obstacle_node, neighbor):
         ''' Modify the cost from the affected node to the obstacle node and 
             put it back to the open list
-        ''' 
-        #### TODO ####
-        # Change the cost from the dynamic obsatcle node to the affected node
+        '''
+        # Change the cost from the dynamic obstacle node to the affected node
         # by setting the obstacle_node.is_obs to True (see self.cost())
-        
-        # Put the obsatcle node and the neighbor node back to Open list 
-        
-        #### TODO END ####
+        new_cost = neighbor.h + self.cost(obstacle_node, neighbor)
+
+        if obstacle_node.tag == "CLOSED":
+            self.insert(obstacle_node, new_cost)
 
         return self.get_k_min()
-
 
     def prepare_repair(self, node):
         ''' Sense the neighbors of the given node
             If any of the neighbor node is a dynamic obstacle
             the cost from the adjacent node to the dynamic obstacle node should be modified
         '''
-        #### TODO ####
         # Sense the neighbors to see if they are new obstacles
-        
-            # If neighbor.is_dy_obs == True but neighbor.is_obs == Flase, 
+        for neighbor in self.get_neighbors(node):
+            # If neighbor.is_dy_obs == True but neighbor.is_obs == False,
             # the neighbor is a new dynamic obstacle
-            
+            if neighbor.is_dy_obs is True and neighbor.is_obs is False:
+                neighbor.is_obs = True
+                if neighbor.tag == "CLOSED":
+                    self.insert(neighbor, math.inf)
                 # Modify the cost from this neighbor node to all this neighbor's neighbors
                 # using self.modify_cost
-
-        #### TODO END ####
-
+                for neighbor_neighbor in self.get_neighbors(neighbor):
+                    self.modify_cost(neighbor, neighbor_neighbor)
 
     def insert(self, node, new_h):
         ''' Insert node in the open list
@@ -203,7 +222,7 @@ class DStar:
         new_h - The new path cost to the goal
 
         Update the k value of the node based on its tag
-        Append the node t othe open_list
+        Append the node to the open_list
         '''
         # Update k
         if node.tag == "NEW":
@@ -218,20 +237,22 @@ class DStar:
         node.tag = "OPEN"
         self.open.add(node)
 
-
     def run(self):
         ''' Run D* algorithm
             Perform the first search from goal to start given the pre-known grid
             Check from start to goal to see if any change happens in the grid, 
             modify the cost and replan in the new map
         '''
-        #### TODO ####
         # Search from goal to start with the pre-known map
-        
-            # Process until open set is empty or start is reached
-            # using self.process_state()
-            
-        
+        self.insert(self.goal, 0)
+
+        # Process until open set is empty or start is reached
+        # using self.process_state()
+        while self.open:
+            if self.start in self.open:
+                break
+            # print(self.open)
+            self.process_state()
         # Visualize the first path if found
         self.get_backpointer_list(self.start)
         self.draw_path(self.grid, "Path in static map")
@@ -239,31 +260,35 @@ class DStar:
             print("No path is found")
             return
 
-        # Start from start to goal
-        # Update the path if there is any change in the map
+        curr = self.start
+        while curr != self.goal:
+            # for node in self.path:
+            # Start from start to goal
+            # Update the path if there is any change in the map
 
             # Check if any repair needs to be done
             # using self.prepare_repair
+            self.prepare_repair(curr)
 
             # Replan a path from the current node
             # using self.repair_replan
+            self.repair_replan(curr)
 
             # Get the new path from the current node
-            
+
             # Uncomment this part when you have finished the previous part
             # for visualizing each move and replanning
-            '''
             # Visualize the path in progress
+
+            self.get_backpointer_list(curr)
             self.draw_path(self.dynamic_grid, "Path in progress")
 
             if self.path == []:
                 print("No path is found")
                 return
-            '''
-            # Get the next node to continue
 
-        #### TODO END ####
-                
+            # Get the next node to continue
+            curr = curr.parent
 
     def get_backpointer_list(self, node):
         ''' Keep tracing back to get the path from a given node to goal '''
@@ -271,8 +296,8 @@ class DStar:
         cur_node = node
         self.path = [cur_node]
         while cur_node != self.goal and \
-              cur_node != None and \
-              not cur_node.is_obs:
+                cur_node is not None and \
+                not cur_node.is_obs:
             # trace back
             cur_node = cur_node.parent
             # add to path
@@ -282,32 +307,31 @@ class DStar:
         if cur_node != self.goal:
             self.path = []
 
-
     def draw_path(self, grid, title="Path"):
         '''Visualization of the found path using matplotlib'''
         fig, ax = plt.subplots(1)
         ax.margins()
 
         # Draw map
-        row = len(grid)     # map size
+        row = len(grid)  # map size
         col = len(grid[0])  # map size
         for i in range(row):
             for j in range(col):
                 if not self.grid_node[i][j].is_obs: \
-                    ax.add_patch(Rectangle((j-0.5, i-0.5),1,1,edgecolor='k',facecolor='w'))  # free space
-                else:    
-                    ax.add_patch(Rectangle((j-0.5, i-0.5),1,1,edgecolor='k',facecolor='k'))  # obstacle      
-                    
+                        ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, edgecolor='k', facecolor='w'))  # free space
+                else:
+                    ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, edgecolor='k', facecolor='k'))  # obstacle
+
         # Draw path
         for node in self.path:
             row, col = node.row, node.col
-            ax.add_patch(Rectangle((col-0.5, row-0.5),1,1,edgecolor='k',facecolor='b'))        # path
+            ax.add_patch(Rectangle((col - 0.5, row - 0.5), 1, 1, edgecolor='k', facecolor='b'))  # path
         if len(self.path) != 0:
             start, end = self.path[0], self.path[-1]
         else:
             start, end = self.start, self.goal
-        ax.add_patch(Rectangle((start.col-0.5, start.row-0.5),1,1,edgecolor='k',facecolor='g'))  # start
-        ax.add_patch(Rectangle((end.col-0.5, end.row-0.5),1,1,edgecolor='k',facecolor='r'))  # goal
+        ax.add_patch(Rectangle((start.col - 0.5, start.row - 0.5), 1, 1, edgecolor='k', facecolor='g'))  # start
+        ax.add_patch(Rectangle((end.col - 0.5, end.row - 0.5), 1, 1, edgecolor='k', facecolor='r'))  # goal
         # Graph settings
         plt.title(title)
         plt.axis('scaled')

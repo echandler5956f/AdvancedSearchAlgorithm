@@ -20,7 +20,7 @@ def load_map(file_path, resolution_scale):
 
     map_array = np.asarray(img, dtype='uint8')
 
-    # Get bianry image
+    # Get binary image
     threshold = 127
     map_array = 1 * (map_array > threshold)
 
